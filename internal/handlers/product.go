@@ -5,16 +5,16 @@ import (
 	"errors"
 	"net/http"
 	"pos-api/internal/models"
-	"pos-api/internal/repository"
+	"pos-api/internal/repositories"
 
 	"gorm.io/gorm"
 )
 
 type ProductHandler struct {
-	Repo *repository.ProductRepository
+	Repo *repositories.BaseRepository[models.Product]
 }
 
-func NewProductHandler(repo *repository.ProductRepository) *ProductHandler {
+func NewProductHandler(repo *repositories.BaseRepository[models.Product]) *ProductHandler {
 	return &ProductHandler{Repo: repo}
 }
 
@@ -44,6 +44,23 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(products)
+}
+
+func (h *ProductHandler) GetProductsByCategory(w http.ResponseWriter, r *http.Request) {
+	categoryID := r.PathValue("category_id")
+
+	p, err := h.Repo.FindWhere("category_id = ?", categoryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "Products not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(p)
 }
 
 func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {

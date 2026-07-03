@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: punto_de_venta_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${ATLAS_DB_USER}
+      POSTGRES_PASSWORD: ${ATLAS_DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
