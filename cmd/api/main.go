@@ -25,9 +25,11 @@ func main() {
 
 	productRepo := repositories.NewBaseRepository[models.Product](db)
 	categoryRepo := repositories.NewBaseRepository[models.Category](db)
+	saleRepo := repositories.NewBaseRepository[models.Sale](db)
 
 	productHandler := handlers.NewProductHandler(productRepo)
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
+	saleHandler := handlers.NewSaleHandler(saleRepo)
 
 	mux := http.NewServeMux()
 
@@ -42,6 +44,9 @@ func main() {
 	mux.HandleFunc("GET /categories", categoryHandler.GetCategories)
 	mux.HandleFunc("PUT /categories/{id}", categoryHandler.UpdateCategory)
 	mux.HandleFunc("DELETE /categories/{id}", categoryHandler.DeleteCategory)
+
+	mux.HandleFunc("POST /sales", saleHandler.CreateSale)
+	mux.HandleFunc("GET /sales", saleHandler.GetSales)
 
 	port := os.Getenv("PORT")
 	if port == "" {
