@@ -1,10 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"pos-api/internal/models"
 	"pos-api/internal/repositories"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CategoryHandler struct {
@@ -15,60 +17,60 @@ func NewCategoryHandler(repo *repositories.BaseRepository[models.Category]) *Cat
 	return &CategoryHandler{Repo: repo}
 }
 
-func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	var c models.Category
-	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+func (h *CategoryHandler) CreateCategory(c *gin.Context) {
+	var category models.Category
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.Repo.Create(&c); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := h.Repo.Create(&category); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(c)
+	c.JSON(http.StatusCreated, category)
 }
 
-func (h *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) GetCategories(c *gin.Context) {
 	categories, err := h.Repo.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(categories)
+	c.JSON(http.StatusOK, categories)
 }
 
-func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
+	id := c.Param("id")
 
-	var c models.Category
-	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var category models.Category
+
+	if err := c.ShouldBindJSON(&category); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.Repo.Update(id, &c); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := h.Repo.Update(id, &category); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Product updated successfully"}`))
+	if parsedID, err := strconv.ParseInt(id, 10, 64); err == nil {
+		category.ID = parsedID
+	}
+
+	c.JSON(http.StatusOK, category)
 }
 
-func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
+	id := c.Param("id")
 
 	if err := h.Repo.Delete(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Product deleted successfully"}`))
+	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
 }
