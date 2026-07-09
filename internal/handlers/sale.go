@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"pos-api/internal/models"
 	"pos-api/internal/repositories"
 
+	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -20,23 +20,18 @@ func NewSaleHandler(repo *repositories.BaseRepository[models.Sale]) *SaleHandler
 }
 
 type SaleRequest struct {
-	PaymentMethod string `json:"payment_method"`
+	PaymentMethod string `json:"payment_method" binding:"required"`
 	Items         []struct {
-		ProductID uint64 `json:"product_id"`
-		Quantity  int    `json:"quantity"`
-	} `json:"items"`
+		ProductID uint64 `json:"product_id" binding:"required"`
+		Quantity  int    `json:"quantity" binding:"required,min=1"`
+	} `json:"items" binding:"required,min=1"`
 }
 
-func (h *SaleHandler) CreateSale(w http.ResponseWriter, r *http.Request) {
+func (h *SaleHandler) CreateSale(c *gin.Context) {
 	var req SaleRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if len(req.Items) == 0 {
-		http.Error(w, "No items sold", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -88,23 +83,20 @@ func (h *SaleHandler) CreateSale(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(sale)
+	c.JSON(http.StatusCreated, sale)
 }
 
-func (h *SaleHandler) GetSales(w http.ResponseWriter, r *http.Request) {
+func (h *SaleHandler) GetSales(c *gin.Context) {
 	var sales []models.Sale
 
 	if err := h.Repo.DB.Preload("Items").Find(&sales).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sales)
+	c.JSON(http.StatusOK, sales)
 }

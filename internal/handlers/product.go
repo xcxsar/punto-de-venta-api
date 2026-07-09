@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"pos-api/internal/models"
 	"pos-api/internal/repositories"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -18,94 +18,87 @@ func NewProductHandler(repo *repositories.BaseRepository[models.Product]) *Produ
 	return &ProductHandler{Repo: repo}
 }
 
-func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	var p models.Product
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.Repo.Create(&p); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(p)
+	c.JSON(http.StatusCreated, p)
 }
 
-func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) GetProducts(c *gin.Context) {
 	products, err := h.Repo.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(products)
+	c.JSON(http.StatusOK, products)
 }
 
-func (h *ProductHandler) GetProductsByCategory(w http.ResponseWriter, r *http.Request) {
-	categoryID := r.PathValue("category_id")
+func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
+	categoryID := c.Param("category_id")
 
 	p, err := h.Repo.FindWhere("category_id = ?", categoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			http.Error(w, "Products not found", http.StatusNotFound)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Products not found"})
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(p)
+	c.JSON(http.StatusOK, p)
 }
 
-func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *ProductHandler) GetProductByID(c *gin.Context) {
+	id := c.Param("id")
 
 	p, err := h.Repo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			http.Error(w, "Product not found", http.StatusNotFound)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(p)
+	c.JSON(http.StatusOK, p)
 }
 
-func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *ProductHandler) UpdateProduct(c *gin.Context) {
+	id := c.Param("id")
 
 	var p models.Product
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.Repo.Update(id, &p); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Product updated successfully"}`))
+	c.JSON(http.StatusOK, gin.H{"message": "Product updated successfully"})
 }
 
-func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *ProductHandler) DeleteProduct(c *gin.Context) {
+	id := c.Param("id")
 
 	if err := h.Repo.Delete(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Product deleted successfully"}`))
+	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
 }

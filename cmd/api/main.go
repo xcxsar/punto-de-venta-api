@@ -2,13 +2,13 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
 	"pos-api/internal/database"
 	"pos-api/internal/handlers"
 	"pos-api/internal/models"
 	"pos-api/internal/repositories"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
@@ -31,22 +31,24 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	saleHandler := handlers.NewSaleHandler(saleRepo)
 
-	mux := http.NewServeMux()
+	r := gin.Default()
+	api := r.Group("/api")
+	{
+		api.POST("/products", productHandler.CreateProduct)
+		api.GET("/products", productHandler.GetProducts)
+		api.GET("/products/:id", productHandler.GetProductByID)
+		api.PUT("/products/:id", productHandler.UpdateProduct)
+		api.DELETE("/products/:id", productHandler.DeleteProduct)
+		api.GET("/products/category/:category_id", productHandler.GetProductsByCategory)
 
-	mux.HandleFunc("POST /products", productHandler.CreateProduct)
-	mux.HandleFunc("GET /products", productHandler.GetProducts)
-	mux.HandleFunc("GET /products/{id}", productHandler.GetProductByID)
-	mux.HandleFunc("GET /products/category/{category_id}", productHandler.GetProductsByCategory)
-	mux.HandleFunc("PUT /products/{id}", productHandler.UpdateProduct)
-	mux.HandleFunc("DELETE /products/{id}", productHandler.DeleteProduct)
+		api.POST("/categories", categoryHandler.CreateCategory)
+		api.GET("/categories", categoryHandler.GetCategories)
+		api.PUT("/categories/:id", categoryHandler.UpdateCategory)
+		api.DELETE("/categories/:id", categoryHandler.DeleteCategory)
 
-	mux.HandleFunc("POST /categories", categoryHandler.CreateCategory)
-	mux.HandleFunc("GET /categories", categoryHandler.GetCategories)
-	mux.HandleFunc("PUT /categories/{id}", categoryHandler.UpdateCategory)
-	mux.HandleFunc("DELETE /categories/{id}", categoryHandler.DeleteCategory)
-
-	mux.HandleFunc("POST /sales", saleHandler.CreateSale)
-	mux.HandleFunc("GET /sales", saleHandler.GetSales)
+		api.POST("/sales", saleHandler.CreateSale)
+		api.GET("/sales", saleHandler.GetSales)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -54,5 +56,5 @@ func main() {
 	}
 
 	log.Printf("Server is running on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	r.Run(":" + port)
 }
