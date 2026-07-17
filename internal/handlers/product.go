@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"pos-api/internal/models"
 	"pos-api/internal/repositories"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -19,18 +20,18 @@ func NewProductHandler(repo *repositories.BaseRepository[models.Product]) *Produ
 }
 
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	var p models.Product
-	if err := c.ShouldBindJSON(&p); err != nil {
+	var product models.Product
+	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.Repo.Create(&p); err != nil {
+	if err := h.Repo.Create(&product); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, p)
+	c.JSON(http.StatusCreated, product)
 }
 
 func (h *ProductHandler) GetProducts(c *gin.Context) {
@@ -46,7 +47,7 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 	categoryID := c.Param("category_id")
 
-	p, err := h.Repo.FindWhere("category_id = ?", categoryID)
+	products, err := h.Repo.FindWhere("category_id = ?", categoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Products not found"})
@@ -56,13 +57,13 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, p)
+	c.JSON(http.StatusOK, products)
 }
 
 func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
 
-	p, err := h.Repo.GetByID(id)
+	products, err := h.Repo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
@@ -72,24 +73,29 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, p)
+	c.JSON(http.StatusOK, products)
 }
 
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	id := c.Param("id")
 
-	var p models.Product
-	if err := c.ShouldBindJSON(&p); err != nil {
+	var product models.Product
+
+	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.Repo.Update(id, &p); err != nil {
+	if err := h.Repo.Update(id, &product); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Product updated successfully"})
+	if parsedID, err := strconv.ParseInt(id, 10, 64); err == nil {
+		product.ID = parsedID
+	}
+
+	c.JSON(http.StatusOK, product)
 }
 
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
